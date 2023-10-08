@@ -66,8 +66,10 @@ func (ak *DefaultAccessToken) GetAccessToken() (accessToken string, err error) {
 func (ak *DefaultAccessToken) GetAccessTokenContext(ctx context.Context) (accessToken string, err error) {
 	// 先从cache中取
 	accessTokenCacheKey := fmt.Sprintf("%s_access_token_%s", ak.cacheKeyPrefix, ak.appID)
-	if val := ak.cache.Get(accessTokenCacheKey); val != nil {
-		return val.(string), nil
+	val := ak.cache.Get(accessTokenCacheKey)
+	var ok bool
+	if accessToken, ok = val.(string); ok && accessToken != "" {
+		return
 	}
 
 	// 加上lock，是为了防止在并发获取token时，cache刚好失效，导致从微信服务器上获取到不同token
@@ -75,8 +77,9 @@ func (ak *DefaultAccessToken) GetAccessTokenContext(ctx context.Context) (access
 	defer ak.accessTokenLock.Unlock()
 
 	// 双检，防止重复从微信服务器获取
-	if val := ak.cache.Get(accessTokenCacheKey); val != nil {
-		return val.(string), nil
+	val = ak.cache.Get(accessTokenCacheKey)
+	if accessToken, ok = val.(string); ok && accessToken != "" {
+		return
 	}
 
 	// cache失效，从微信服务器获取
